@@ -1,0 +1,183 @@
+<html>
+<head>
+	<title>Chat Example</title>
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.2/jquery.min.js"></script>
+<script type="text/javascript">
+    $(function() {
+
+    var conn;
+    var msg = $("#msg");
+		var log = $("#log");
+		var backlog = {{ $.History }};
+
+    function appendLog(msg) {
+        var d = log[0]
+        var doScroll = d.scrollTop == d.scrollHeight - d.clientHeight;
+        msg.appendTo(log)
+        if (doScroll) {
+            d.scrollTop = d.scrollHeight - d.clientHeight;
+        }
+		}
+
+
+    $("#form").submit(function() {
+        if (!conn) {
+            return false;
+        }
+        if (!msg.val()) {
+            return false;
+        }
+        conn.send(msg.val());
+        msg.val("");
+        return false
+    });
+
+    if (window["WebSocket"]) {
+        conn = new WebSocket("ws://{{$.Host}}/ws");
+        conn.onclose = function(evt) {
+            appendLog($("<div><b>Connection closed.</b></div>"))
+        }
+        conn.onmessage = function(evt) {
+            appendLog($("<div/>").text(evt.data).addClass("highlight"))
+        }
+    } else {
+        appendLog($("<div><b>Your browser does not support WebSockets.</b></div>"))
+    }
+		for(i = 0; i < backlog.length; i++) {
+			if(backlog[i] != "") {
+				appendLog($("<div/>").text(backlog[i]).addClass("highlight"));
+			}
+		}
+    });
+</script>
+<style type="text/css">
+	@import url(http://fonts.googleapis.com/css?family=Roboto+Condensed:700,700italic|Lato:400,400italic,700,700italic);
+
+	/************************************
+ * GLOBAL STYLES
+ ***********************************/
+
+ body {
+		background-color: #8e2800;
+	 	font-family: "Lato", sans-serif;
+		font-size: 40px;
+		font-weight: 400;
+		color: #fff0a5;
+		text-align: center;
+		margin: 0px;
+		padding: 0px;
+		border: 0px none;
+		vertical-align: baseline;
+	}
+
+	::selection {
+		background-color: #b64926;
+		color: #fff0a5;
+	}
+
+	/***********************************
+ * HEADERS
+ **********************************/
+
+ h1 {
+		font-family: "Roboto Condensed", sans-serif;
+	 	font-size: 84px;
+		font-weight: 700;
+		line-height: 1.5;
+	}
+
+	h2 {
+		font-family: "Lato", sans-serif;
+		font-size: 40px;
+		font-weight: 400;
+		line-height: 1.5;
+	}
+
+	div {
+		font-family: "Lato", sans-serif;
+		font-size: 32px;
+		font-weight: 400;
+		line-height: 1.5;
+	}
+	/************************************
+ * LINKS
+ ***********************************/
+
+ a:not(.image) {
+		color: #ffb03b;
+	 	text-decoration: none;
+	}
+
+	a:not(.image):hover {
+		color: #fff0a5;
+		text-decoration: underline;
+	}
+
+	/**************************************
+ * ACCENTS
+ *************************************/
+
+ .highlight {
+		color: #ffb03b;
+	}
+
+	blockquote {
+		background-color: transparent;
+		color: #ffb03b;
+		width: 100%;
+		box-shadow: none;
+	}
+
+	
+	
+html {
+    overflow: hidden;
+}
+
+body {
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+}
+
+#log {
+    margin: 0;
+    padding: 0.5em 0.5em 0.5em 0.5em;
+    position: absolute;
+    top: 75px;
+    left: 0.5em;
+    right: 0.5em;
+    bottom: 3em;
+		overflow: auto;
+}
+
+#form {
+    padding: 0 0.5em 0 0.5em;
+    margin: 0;
+    position: absolute;
+    bottom: 1em;
+    left: 0px;
+    width: 100%;
+    overflow: hidden;
+}
+
+input[type=text] {
+	background: transparent;
+	border: none;
+	border-bottom: #fff0a5 1px solid;
+	color: #fff0a5;
+	font-size: 24px;
+	text-align: center;
+}
+</style>
+</head>
+<body>
+<h2>What do you want to be when you grow up?</h2>
+<div id="log"></div>
+<form id="form">
+    <input type="text" id="msg" size="32" autofocus/>
+</form>
+</body>
+</html>

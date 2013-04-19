@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>Realtime and Go</title>
+
+		<meta name="description" content="A talk about why Go is the perfect language for building realtime applications.">
+		<meta name="author" content="Paddy Foran">
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<link rel="stylesheet" href="http://static.goonaboat.com/css/reveal.min.css">
+		<link rel="stylesheet" href="http://static.goonaboat.com/css/theme/rtceu.css" id="theme">
+
+		<!-- For syntax highlighting -->
+		<link rel="stylesheet" href="http://static.goonaboat.com/lib/css/zenburn.css">
+
+		<!-- If the query includes 'print-pdf', use the PDF print sheet -->
+		<script>
+			document.write( '<link rel="stylesheet" href="http://static.goonaboat.com/css/print/' + ( window.location.search.match( /print-pdf/gi ) ? 'pdf' : 'paper' ) + '.css" type="text/css" media="print">' );
+		</script>
+
+		<!--[if lt IE 9]>
+		<script src="http://static.goonaboat.com/lib/js/html5shiv.js"></script>
+		<![endif]-->
+		{{ if not $.Controller }}
+		<script type="text/javascript">
+			window.onload = function() {
+					var conn;
+					if (window["WebSocket"]) {
+						conn = new WebSocket("ws://{{$.Host}}/{{$.Session}}?ws=1");
+						conn.onclose = function(evt) {
+							console.log("Connection closed.");
+						}
+						conn.onmessage = function(evt) {
+							console.log(evt.data);
+							msg = JSON.parse(evt.data);
+							indices = Reveal.getIndices();
+							indexh = indices.h;
+							indexv = indices.v;
+							fragment = indices.f;
+							if("indexh" in msg) {
+								indexh = msg.indexh;
+							}
+							if("indexv" in msg) {
+								indexv = msg.indexv;
+							}
+							if("fragment" in msg) {
+								fragment = msg.fragment;
+							}
+							Reveal.slide(indexh, indexv, fragment);
+						}
+					}
+				}
+			</script>
+			{{ else }}
+			<script type="text/javascript">
+				window.onload = function() {
+					Reveal.addEventListener('slidechanged', function(event) {
+							data = {"indexh": event.indexh, "indexv": event.indexv};
+							var req = new XMLHttpRequest();
+							req.onload = function() { console.log(this.responseText); };
+							req.open("post", "/{{ $.Session }}", true);
+							req.setRequestHeader("Authorization", "OAuth {{ $.Auth }}");
+							req.send(JSON.stringify(data));
+					});
+
+					Reveal.addEventListener('fragmentshown', function(event) {
+							indices = Reveal.getIndices();
+							data = {"indexh": indices.h, "indexv": indices.v, "fragment": indices.f};
+							var req = new XMLHttpRequest();
+							req.onload = function() { console.log(this.responseText); };
+							req.open("post", "/{{ $.Session }}", true);
+							req.setRequestHeader("Authorization", "OAuth {{ $.Auth }}");
+							req.send(JSON.stringify(data));
+					});
+
+					Reveal.addEventListener('fragmenthidden', function(event) {
+							data = {"indexh": indices.h, "indexv": indices.v, "fragment": indices.f};
+							var req = new XMLHttpRequest();
+							req.onload = function() { console.log(this.responseText); };
+							req.open("post", "/{{ $.Session }}", true);
+							req.setRequestHeader("Authorization", "OAuth {{ $.Auth }}");
+							req.send(JSON.stringify(data));
+					});
+				}
+			</script>
+			{{ end }}
+	</head>
+
+	<body>
+
+		<div class="reveal">
+
+			<div class="slides">
+
+				<section>
+					<section>
+						<h1>Realtime and Go</h1>
+						<aside class="notes">
+							Hi everyone, welcome to Realtime and Go. How many people in this room are 23 years old or older? Awesome, I'm the young guy again.
+						</aside>
+					</section>
+					<section>
+						<h1>I'm calling an audible.</h1>
+						<h2>This is not the talk you are looking for.</h2>
+						<aside class="notes">
+							As I was preparing this talk and practicing it in front of other audiences, it felt a bit off to me. I was talking too much about the individual packages, and not enough about the core message I wanted to convey with this talk. So I'm calling an audible (sorry, organisers). I'm going to deviate from my abstract. If you were excited about my talk because of one of the technologies I listed in the abstract, I apologise. Please approach me during the conference, and I will happily chat your ear off about them. Instead, I'm going to spend this talk making you fall in love with Go, just as I did.
+						</aside>
+					</section>
+				</section>
+
+				<section>
+					<section>
+						<h1>My Name's Paddy</h1>
+						<ul class="left three-quarters">
+							<li><span class="highlight">@paddyforan</span> on Twitter</li>
+							<li><span class="highlight">@paddy</span> on App.net</li>
+							<li>Developer Experience Engineer, Iron.io
+							<li>Second Bit</li>
+							<li>Gopher</li>
+						</ul>
+						<img src="http://static.goonaboat.com/img/me.jpg" alt="Me. Aren't I pretty?" class="right one-quarter">
+						<aside class="notes">
+							My name is Paddy. When I grow up, I want to be Iron Man. I've listed my Twitter and App.net usernames there; please heckle me over the internet during this talk, because that will make me laugh when I see them later. I work for Iron.io as a Developer Experience Engineer, which means my job is to make developers happy. I experience middling success at this. I also own Second Bit, a company I started because it gave me limited liability and I enjoy not being sued. I'm also a proud Go user and a member of that community, and we call ourselves Gophers. It's kind of like a team name. Like The Avengers, or The Cool Kids Club.
+						</aside>
+					</section>
+					<section>
+						<h1>#goonaboat</h1>
+						<h2>Please be nice.</h2>
+						<aside class="notes">
+							The hashtag for this talk is "#goonaboat", because I couldn't resist. I'm incredibly nervous to be standing in front of so many people I respect, so please be nice.
+						</aside>
+					</section>
+				</section>
+
+				<section>
+					<h1>Disclaimer</h1>
+					<h2>I don't represent the entire Go community.</h2>
+					<aside class="notes">
+						I'm going to be making some assertions on behalf of the Go community today. I am not an official representative of the Go community. My only credentials are that I love Go, I use Go, and I have a big mouth. So if I say something dumb, it doesn't mean the Go community is full of dumb people, it means I'm dumb.
+					</aside>
+				</section>
+
+				<section>
+					<section>
+						<h1>What is Go?</h1>
+						<h2>&quot;A better C, from the guys that didn’t bring you C++&quot;</h2>
+						<ul>
+							<li>Compiled</li>
+							<li>Static typed</li>
+							<li>Fast</li>
+							<li>Elegant</li>
+							<li>Concurrent</li>
+						</ul>
+					</section>
+					<section>
+						<h1>Compiled</h1>
+						<h2>... sanely.</h2>
+						<pre><code>$ go build</code></pre>
+					</section>
+					<section>
+						<h1>Static typed</h1>
+						<h2>But without the stuttering.</h2>
+						<pre><code>x := 1
+y := "Hello, world!"
+z := map[string]int{"a": 1, "b": 2}</code></pre>
+					</section>
+					<section>
+						<h1>Fast</h1>
+						<h2>When compiling <em>and</em> executing.</h2>
+					</section>
+					<section>
+						<h1>Elegant</h1>
+						<blockquote>Old programs read like quiet conversations between a well-spoken research worker and a well-studied mechanical colleague, not as a debate with a compiler.</blockquote>
+						<p class="right">&mdash; Dick Gabriel</p>
+					</section>
+					<section>
+						<h1>Concurrent</h1>
+						<h2>Don't communicate by sharing memory; share memory by communicating.</h2>
+					</section>
+				</section>
+
+			</div>
+		</div>
+
+		<script src="http://static.goonaboat.com/lib/js/head.min.js"></script>
+		<script src="http://static.goonaboat.com/js/reveal.min.js"></script>
+
+		<script>
+
+			// Full list of configuration options available here:
+			// https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				history: true,
+				center: true,
+
+				transition: 'default',
+
+				width: 960,
+				height: 700,
+				minScale: 0.1,
+				maxScale: 10.0,
+				margin: 0,
+
+				// Optional libraries used to extend on reveal.js
+				dependencies: [
+					{ src: 'http://static.goonaboat.com/lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'http://static.goonaboat.com/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'http://static.goonaboat.com/plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+					{ src: 'http://static.goonaboat.com/plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+				]
+			});
+
+		</script>
+
+	</body>
+</html>
