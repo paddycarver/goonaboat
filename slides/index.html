@@ -484,7 +484,7 @@ var msgHistory = &history{
     tempMsgs := make([]string, len(msgs))
     for _, msg := range msgs {
             tempMsgs = append(tempMsgs, string(msg))
-		}
+    }
     data := TemplateData{Host: r.Host, History: tempMsgs}
     err := temp.Execute(w, data)
     if err != nil {
