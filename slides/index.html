@@ -20,6 +20,11 @@
 		<!-- For syntax highlighting -->
 		<link rel="stylesheet" href="http://static.goonaboat.com/lib/css/zenburn.css">
 
+		<style>
+			.reveal h2 > a {
+				vertical-align: text-bottom !important;
+			}
+		</style>
 		<!-- If the query includes 'print-pdf', use the PDF print sheet -->
 		<script>
 			document.write( '<link rel="stylesheet" href="http://static.goonaboat.com/css/print/' + ( window.location.search.match( /print-pdf/gi ) ? 'pdf' : 'paper' ) + '.css" type="text/css" media="print">' );
@@ -213,6 +218,337 @@ z := map[string]int{"a": 1, "b": 2}</code></pre>
 					</section>
 				</section>
 
+				<section>
+					<section>
+						<h1>Enough Talk</h1>
+						<h2>It's time for websocket-y action!</h2>
+					</section>
+
+					<section>
+						<h1>growup.goonaboat.com</h1>
+						<h2>What do you want to be when you grow up?</h2>
+					</section>
+				</section>
+
+				<section>
+					<section>
+						<h1>Let's pull back the curtain</h1>
+						<pre><code>$ gofmt --comments=false *.go | wc -l
+216</code></pre>
+						<h2>This example was <em>shamelessly</em> &quot;inspired&quot; by <a  href="https://github.com/garyburd/go-websocket/tree/master/examples/chat" title="Gary Burd's example on Github">Gary Burd's example</a> for his wonderful library.</h2>
+					</section>
+
+					<section>
+						<h1>3 processes</h1>
+						<ul>
+							<li>History</li>
+							<li>WebSocket</li>
+							<li>Server</li>
+						</ul>
+					</section>
+
+					<section>
+						<img src="http://static.goonaboat.com/img/onejob.jpg" alt="They have one job." />
+					</section>
+				</section>
+
+				<section>
+					<section>
+						<h1>History</h1>
+						<h2>Those that /dev/null history are unable to repeat it.</h2>
+					</section>
+
+					<section>
+						<h1>The Structure of History</h1>
+						<pre><code>type history struct {
+        messages [][]byte
+        writer chan []byte
+        reader chan chan []byte
+}</code></pre>
+					</section>
+
+					<section>
+						<h1>Paying Attention</h1>
+						<pre><code>func (h *history) listen() {
+        for {
+                select {
+                case msg := <-h.writer:
+                        h.messages = append(h.messages, msg)
+                case resp := <-h.reader:
+                        for _, msg := range h.messages {
+                                resp <- msg
+                        }
+                        close(resp)
+                }
+        }
+}</code></pre>
+					</section>
+
+					<section>
+						<h1>Sharing What You Know</h1>
+						<pre><code>func (h *history) dump() [][]byte {
+        resp := make(chan []byte)
+        h.reader <- resp
+        result := make([][]byte, 0)
+        for msg := range resp {
+                result = append(result, msg)
+        }
+        return result
+}</code></pre>
+					</section>
+				</section>
+
+				<section>
+					<section>
+						<h1>WebSocket</h1>
+						<h2>This is the proverbial traffic cop of the system.</h2>
+					</section>
+
+					<section>
+						<h1>Defining a Connection</h1>
+						<pre><code>type connection struct {
+        ws   *websocket.Conn
+        send chan []byte
+}</code></pre>
+					</section>
+
+					<section>
+						<h1>Reading</h1>
+						<pre><code>func (c *connection) readPump() {
+        defer func() {
+                wsHub.unregister <- c
+                c.ws.Close()
+        }()
+        c.ws.SetReadLimit(maxMessageSize)
+        c.ws.SetReadDeadline(time.Now().Add(readWait))
+        ....
+}</code></pre>
+					</section>
+          <section>
+						<h1>Reading (continued)</h1>
+  	        <pre><code>...
+for {
+        op, r, err := c.ws.NextReader()
+        if err != nil {
+                break
+        }
+...
+}</code></pre>
+					</section>
+					<section>
+						<h1>Reading (last one)</h1>
+						<pre><code>...
+switch op {
+case websocket.OpPong:
+        c.ws.SetReadDeadline(time.Now().Add(readWait))
+case websocket.OpText:
+        message, err := ioutil.ReadAll(r)
+        if err != nil {
+                break
+        }
+        wsHub.broadcast <- message
+        msgHistory.writer <- message
+}</code></pre>
+					</section>
+
+					<section>
+						<h1>Writing A Single Message</h1>
+						<pre><code>func (c *connection) write(opCode int, payload []byte) error {
+        c.ws.SetWriteDeadline(time.Now().Add(writeWait))
+        return c.ws.WriteMessage(opCode, payload)
+}</code></pre>
+					</section>
+
+					<section>
+						<h1>Writing</h1>
+						<pre><code>func (c *connection) writePump() {
+        ticker := time.NewTicker(pingPeriod)
+        defer func() {
+                ticker.Stop()
+                c.ws.Close()
+        }()
+        for {
+                ...
+        }
+}</code></pre>
+					</section>
+
+					<section>
+						<h1>Writing (continued)</h1>
+						<pre><code>select {
+case message, ok := <-c.send:
+    if !ok {
+           c.write(websocket.OpClose, []byte{})
+           return
+    }
+    if err := c.write(websocket.OpText, message); err != nil {
+           return
+    }
+case <-ticker.C:
+    if err := c.write(websocket.OpPing, []byte{}); err != nil {
+           return
+    }
+}</code></pre>
+					</section>
+
+					<section>
+						<h1>Upgrading</h1>
+						<pre><code>func serveWs(w http.ResponseWriter, r *http.Request) {
+    ws, err := websocket.Upgrade(w, r.Header, nil, 1024, 1024)
+    if _, ok := err.(websocket.HandshakeError); ok {
+            http.Error(w, "Not a websocket handshake", 400)
+            return
+    } else if err != nil {
+            log.Println(err)
+            return
+    }
+    c := &connection{send: make(chan []byte, 256), ws: ws}
+    wsHub.register <- c
+    go c.writePump()
+    c.readPump()
+}</code></pre>
+					</section>
+
+					<section>
+						<h1>The Hub</h1>
+						<pre><code>type hub struct {
+        connections map[*connection]bool
+        broadcast   chan []byte
+        register    chan *connection
+        unregister  chan *connection
+}
+
+var wsHub = hub{
+        broadcast:   make(chan []byte),
+        register:    make(chan *connection),
+        unregister:  make(chan *connection),
+        connections: make(map[*connection]bool),
+}</code></pre>
+					</section>
+
+					<section>
+						<h1>The Hub (continued)</h1>
+						<pre><code>func (h *hub) run() {
+        for {
+                select {
+                case c := <-h.register:
+                        h.connections[c] = true
+                case c := <-h.unregister:
+                        delete(h.connections, c)
+                        close(c.send)
+                case m := <-h.broadcast:
+                        for c := range h.connections {
+                                select {
+                                case c.send <- m:
+                                default:
+                                        close(c.send)
+                                        delete(h.connections, c)</code></pre>
+					</section>
+				</section>
+
+				<section>
+					<section>
+						<h1>Server</h1>
+						<h2>A glorified Javascript delivery mechanism.</h2>
+					</section>
+
+					<section>
+						<h1>Flags &amp; Globals</h1>
+						<pre><code>var addr = flag.String("addr", ":8080", "Address to listen on")
+var file = flag.String("file", "growup.html", "Template to load")
+var temp *template.Template
+var msgHistory = &history{
+        messages: make([][]byte, 0),
+        writer: make(chan []byte),
+        reader: make(chan chan []byte),
+}</code></pre>
+					</section>
+
+					<section>
+						<h1>Template Data</h1>
+						<pre><code>type TemplateData struct {
+        Host string
+        History []string
+}</code></pre>
+					</section>
+
+					<section>
+						<h1>Serving Requests</h1>
+						<pre><code>func serve(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "text/html; charset=utf-8")
+    msgs := msgHistory.dump()
+    tempMsgs := make([]string, len(msgs))
+    for _, msg := range msgs {
+            tempMsgs = append(tempMsgs, string(msg))
+		}
+    data := TemplateData{Host: r.Host, History: tempMsgs}
+    err := temp.Execute(w, data)
+    if err != nil {
+            log.Println("temp.Execute: ", err)
+            return
+    }
+}</code></pre>
+					</section>
+
+					<section>
+						<h1>Pulling it all together</h1>
+						<pre><code>func main() {
+        flag.Parse()
+        temp = template.Must(template.ParseFiles(*file))
+        go wsHub.run()
+        go msgHistory.listen()
+        http.HandleFunc("/", serve)
+        http.HandleFunc("/ws", serveWs)
+        err := http.ListenAndServe(*addr, nil)
+        if err != nil {
+                log.Fatal("ListenAndServe: ", err)
+        }
+}</code></pre>
+					</section>
+				</section>
+				<section>
+					<h1>That's it. In its entirety.</h1>
+					<h2><a href="http://github.com/paddyforan/goonaboat/tree/master/growup" title="Source on Github">github.com/paddyforan/goonaboat</a></h2>
+				</section>
+
+				<section>
+					<section>
+						<h1>So Let's Recap</h1>
+						<h2>Mainly for the people that spent the talk heckling me on Twitter.</h2>
+					</section>
+
+					<section>
+						<h1>Goroutines are Elegant</h1>
+						<h2>Cheap concurrency is never a bad thing.</h2>
+					</section>
+					<section>
+						<h1>Channels are Awesome</h1>
+						<h2>Because goroutines like to communicate.</h2>
+					</section>
+					<section>
+						<h1>WebSockets are <em>Magic</em></h1>
+						<h2>I mean, really.</h2>
+					</section>
+					<section>
+						<h1>The Gopher is Adorable</h1>
+						<img src="http://static.goonaboat.com/img/gopher.png" alt="Just look at him!" />
+					</section>
+					<section>
+						<h1>Go + Realtime = &hearts;</h1>
+						<h2>Like unicorns and magic, they belong together.</h2>
+					</section>
+					<section>
+						<h1>You're Going to Check Out Go</h1>
+						<ul>
+							<li><a href="http://www.golang.org" title="The Go Homepage">golang.org</a></li>
+							<li><a href="http://tour.golang.org/" title="The Go Tour">tour.golang.org</a></li>
+							<li><a href="https://groups.google.com/group/golang-nuts" title="golang-nuts mailing list">golang-nuts@googlegroups.com</a></li>
+						</ul>
+					</section>
+				</section>
+				<section>
+					<h1>Thank You</h1>
+				</section>
 			</div>
 		</div>
 
