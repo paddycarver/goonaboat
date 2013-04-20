@@ -8,7 +8,8 @@ import (
 )
 
 var addr = flag.String("addr", ":8080", "HTTP address to listen on")
-var temp = template.Must(template.ParseFiles("growup.html"))
+var file = flag.String("file", "/home/ubuntu/gopath/src/github.com/paddyforan/goonaboat/growup/growup.html", "Template file to load")
+var temp *template.Template
 var msgHistory = &history{messages: make([][]byte, 0), writer: make(chan []byte), reader: make(chan chan []byte)}
 
 type TemplateData struct {
@@ -40,6 +41,7 @@ func serve(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
+        temp = template.Must(template.ParseFiles(*file))
 	go wsHub.run()
 	go msgHistory.listen()
 	http.HandleFunc("/", serve)
