@@ -1,0 +1,9 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <item
+        android:id="@+id/action_account"
+        android:orderInCategory="0"
+        android:showAsAction="ifRoom"
+        android:title="@string/action_account"/>
+
+</menu>

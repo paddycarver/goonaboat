@@ -9,3 +9,22 @@ growup/growup
 *~
 *.swp
 *.swo
+
+# built application files
+*.apk
+*.ap_
+
+# files for the dex VM
+*.dex
+
+# Java class files
+*.class
+
+# generated files
+android/GoOnABoat/bin/
+android/GoOnABoat/gen/
+
+# Local configuration file (sdk path, etc)
+android/GoOnABoat/local.properties
+
+android/.metadata
