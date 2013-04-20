@@ -60,9 +60,10 @@
 			</script>
 			{{ else }}
 			<script type="text/javascript">
-isNativeApp = function() {
-    return /GoOnABoat\/[0-9\.]+$/.test(navigator.userAgent);
-}
+				isNativeApp = function() {
+					return /GoOnABoat\/[0-9\.]+$/.test(navigator.userAgent);
+				}
+
 				window.onload = function() {
 
 					Reveal.addEventListener('slidechanged', function(event) {
@@ -72,12 +73,13 @@ isNativeApp = function() {
 							req.open("post", "/{{ $.Session }}", true);
 							req.setRequestHeader("Authorization", "OAuth {{ $.Auth }}");
 							req.send(JSON.stringify(data));
-if(isNativeApp()) {
-Android.onSlideChanged(event.indexh, event.indexv);
-slideElement = Reveal.getCurrentSlide();
-notes = slideElement.querySelector('aside.notes');
-Android.onNotesChanged(notes ? notes.innerHTML : '');
-}
+							
+							if(isNativeApp()) {
+								Android.onSlideChanged(event.indexh, event.indexv);
+								slideElement = Reveal.getCurrentSlide();
+								notes = slideElement.querySelector('aside.notes');
+								Android.onNotesChanged(notes ? notes.innerHTML : '');
+							}
 					});
 
 					Reveal.addEventListener('fragmentshown', function(event) {
@@ -88,9 +90,10 @@ Android.onNotesChanged(notes ? notes.innerHTML : '');
 							req.open("post", "/{{ $.Session }}", true);
 							req.setRequestHeader("Authorization", "OAuth {{ $.Auth }}");
 							req.send(JSON.stringify(data));
-if(isNativeApp()) {
-Android.onFragmentChanged(indices.h, indices.v, indices.f);
-}
+							
+							if(isNativeApp()) {
+								Android.onFragmentChanged(indices.h, indices.v, indices.f);
+							}
 					});
 
 					Reveal.addEventListener('fragmenthidden', function(event) {
@@ -100,17 +103,19 @@ Android.onFragmentChanged(indices.h, indices.v, indices.f);
 							req.open("post", "/{{ $.Session }}", true);
 							req.setRequestHeader("Authorization", "OAuth {{ $.Auth }}");
 							req.send(JSON.stringify(data));
-if(isNativeApp()) {
-Android.onFragmentChanged(indices.h, indices.v, indices.f);
-				}
+							
+							if(isNativeApp()) {
+								Android.onFragmentChanged(indices.h, indices.v, indices.f);
+							}
 					});
-if(isNativeApp()){
-slideElement = Reveal.getCurrentSlide();
-notes = slideElement.querySelector('aside.notes');
-Android.onNotesChanged(notes ? notes.innerHTML : '');
-Android.onLoad();
-}
-}
+					
+					if(isNativeApp()){
+						slideElement = Reveal.getCurrentSlide();
+						notes = slideElement.querySelector('aside.notes');
+						Android.onNotesChanged(notes ? notes.innerHTML : '');
+						Android.onLoad();
+					}
+				}
 			</script>
 			{{ end }}
 	</head>
