@@ -17,8 +17,8 @@ import (
 var addr = flag.String("addr", ":8081", "HTTP address to listen on")
 var clientID = flag.String("clientid", "", "OAuth client ID from Google")
 var clientSecret = flag.String("secret", "", "OAuth client secret from Google")
-
-var temp = template.Must(template.ParseFiles("index.html"))
+var file = flag.String("file", "index.html", "The path to the HTML file containing your slides")
+var temp *template.Template
 
 type TemplateData struct {
 	Controller bool
@@ -282,6 +282,7 @@ func (h *hub) run() {
 
 func main() {
 	flag.Parse()
+	temp = template.Must(template.ParseFiles(*file))
 
 	router := pat.New()
 
